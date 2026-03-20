@@ -1,0 +1,7 @@
+/sim_venv/*
+/_deps/*
+/build/*
+/CMakeFiles/*
+GEMINI.md
+*.png
+*.csv
