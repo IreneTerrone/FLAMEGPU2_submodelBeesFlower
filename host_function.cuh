@@ -29,7 +29,7 @@ FLAMEGPU_INIT_FUNCTION(createAgent) {
         bee.setVariable<id_t>("id", bee.getID());
         bee.setVariable<float>("x", FLAMEGPU->random.uniform<float>(0.0f, 99.0f));
         bee.setVariable<float>("y", FLAMEGPU->random.uniform<float>(0.0f, 99.0f));
-        bee.setVariable<float>("hunger", FLAMEGPU->random.uniform<float>(0.0f, 100.0f));
+        bee.setVariable<float>("hunger_level", FLAMEGPU->random.uniform<float>(0.0f, 100.0f));
         bee.setVariable<int>("wait", 0);
         bee.setVariable<float>("priority", 0.0f);
         bee.setVariable<float>("target_x", 0.0f);

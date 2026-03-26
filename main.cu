@@ -15,7 +15,7 @@ std::ofstream bees_log;
 
 FLAMEGPU_INIT_FUNCTION(initLog) {
     bees_log.open("bees_log.csv");
-    bees_log << "step,id,x,y,hunger,wait,at_flower" << std::endl;
+    bees_log << "step,id,x,y,hunger_level,wait,at_flower" << std::endl;
 }
 
 FLAMEGPU_STEP_FUNCTION(stepLogger) {
@@ -28,7 +28,7 @@ FLAMEGPU_STEP_FUNCTION(stepLogger) {
                  << bee.getID() << ","
                  << bee.getVariable<float>("x") << ","
                  << bee.getVariable<float>("y") << ","
-                 << bee.getVariable<float>("hunger") << ","
+                 << bee.getVariable<float>("hunger_level") << ","
                  << bee.getVariable<int>("wait") << ","
                  << bee.getVariable<int>("at_flower") << "\n";
     }
@@ -48,7 +48,7 @@ FLAMEGPU_STEP_FUNCTION(stepLogger) {
         flower_log.close();
     }
 
-    float avg_hunger = bees.sum<float>("hunger") / (float)bees.count();
+    float avg_hunger = bees.sum<float>("hunger_level") / (float)bees.count();
     std::cout << "Step: " << step 
               << " | Bee count: " << bees.count() 
               << " | Avg Hunger: " << avg_hunger << std::endl;
@@ -78,7 +78,7 @@ void define_model(ModelDescription &model) {
     bee.newVariable<id_t>("id", ID_NOT_SET);
     bee.newVariable<float>("x");
     bee.newVariable<float>("y");
-    bee.newVariable<float>("hunger");
+    bee.newVariable<float>("hunger_level");
     bee.newVariable<int>("wait", 0);
     bee.newVariable<float>("priority", 0.0f);
     bee.newVariable<float>("target_x");

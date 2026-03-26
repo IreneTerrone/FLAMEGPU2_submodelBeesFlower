@@ -5,7 +5,7 @@ def visualize():
     # Load data
     try:
         # Load bees_log.csv using numpy
-        # Header: step,id,x,y,hunger,wait,at_flower
+        # Header: step,id,x,y,hunger_level,wait,at_flower
         bees_data = np.genfromtxt('bees_log.csv', delimiter=',', skip_header=1)
         # Load flowers_log.csv using numpy
         # Header: id,x,y,nectar
@@ -19,38 +19,40 @@ def visualize():
     bee_id = bees_data[:, 1]
     bee_x = bees_data[:, 2]
     bee_y = bees_data[:, 3]
-    hunger = bees_data[:, 4]
+    hunger_level = bees_data[:, 4]
     wait = bees_data[:, 5]
+    at_flower = bees_data[:, 6]
 
     flower_x = flowers_data[:, 1]
     flower_y = flowers_data[:, 2]
 
-    unique_steps = np.unique(step).astype(int)
+    unique_steps = np.unique(step)
 
-    # 1. Plot Average Hunger and Wait over time
+    # 1. Plot Average Hunger Level and Wait over time
     avg_hunger = []
     avg_wait = []
     for s in unique_steps:
-        mask = step == s
-        avg_hunger.append(np.mean(hunger[mask]))
+        mask = (step == s)
+        avg_hunger.append(np.mean(hunger_level[mask]))
         avg_wait.append(np.mean(wait[mask]))
-    
+
     fig, ax1 = plt.subplots(figsize=(10, 6))
-    
+
     ax1.set_xlabel('Step')
-    ax1.set_ylabel('Avg Hunger', color='tab:red')
-    ax1.plot(unique_steps, avg_hunger, color='tab:red', label='Avg Hunger')
+    ax1.set_ylabel('Avg Hunger Level', color='tab:red')
+    ax1.plot(unique_steps, avg_hunger, color='tab:red', label='Avg Hunger Level')
     ax1.tick_params(axis='y', labelcolor='tab:red')
-    
+
     ax2 = ax1.twinx()
     ax2.set_ylabel('Avg Wait', color='tab:blue')
     ax2.plot(unique_steps, avg_wait, color='tab:blue', label='Avg Wait')
     ax2.tick_params(axis='y', labelcolor='tab:blue')
-    
-    plt.title('Average Bee Hunger and Wait over Time')
+
+    plt.title('Average Bee Hunger Level and Wait over Time')
     fig.tight_layout()
     plt.savefig('hunger_wait_plot.png')
     print("Saved hunger_wait_plot.png")
+
 
     # 2. Movement snapshots
     steps_to_plot = [0, 25, 50, 75, 99]
