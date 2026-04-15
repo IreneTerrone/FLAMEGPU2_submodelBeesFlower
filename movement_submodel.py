@@ -118,7 +118,7 @@ def movement_request(message_in: pyflamegpu.MessageArray2D, message_out: pyflame
 
     # if occupied then look for empty cells
     if (status == pyflamegpu.environment.getPropertyInt("agent_status_movement_unresolved")) :
-        for current_message in message_in.wrap(agent_x, agent_y) :
+        for current_message in message_in(agent_x, agent_y) :
             # if location is unoccupied then check for empty locations
             if (current_message.getVariableInt("status") == pyflamegpu.environment.getPropertyInt("agent_status_unoccupied")) :
                 # if the sugar level at current location is better than currently stored then update
@@ -161,7 +161,7 @@ def movement_response(message_in: pyflamegpu.MessageArray2D, message_out: pyflam
     agent_x = pyflamegpu.getVariableInt("x")
     agent_y = pyflamegpu.getVariableInt("y")
 
-    for current_message in message_in.wrap(agent_x, agent_y) :
+    for current_message in message_in(agent_x, agent_y) :
         # if the location is unoccupied then check for agents requesting to move here
         if (status == pyflamegpu.environment.getPropertyInt("agent_status_unoccupied")) :
             # check if request is to move to this location
@@ -196,7 +196,7 @@ def movement_transaction(message_in: pyflamegpu.MessageArray2D, message_out: pyf
     agent_x = pyflamegpu.getVariableInt("x")
     agent_y = pyflamegpu.getVariableInt("y")
 
-    for current_message in message_in.wrap(agent_x, agent_y) :
+    for current_message in message_in(agent_x, agent_y) :
         # if location contains an agent wanting to move then look for responses allowing relocation
         if (status == pyflamegpu.environment.getPropertyInt("agent_status_movement_requested")) :  
             # if the movement response request came from this location

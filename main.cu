@@ -26,24 +26,27 @@ FLAMEGPU_STEP_FUNCTION(stepLogger) {
     for (const auto& bee : bee_pop) {
         bees_log << step << ","
                  << bee.getID() << ","
-                 << bee.getVariable<float>("x") << ","
-                 << bee.getVariable<float>("y") << ","
+                 << bee.getVariable<int>("x") << ","
+                 << bee.getVariable<int>("y") << ","
                  << bee.getVariable<float>("hunger_level") << ","
                  << bee.getVariable<int>("wait") << ","
-                 << bee.getVariable<int>("at_flower") << "\n";
+                 << bee.getVariable<int>("is_at_flower") << "\n";
     }
     
-    // Log flowers once at the start to know where they are
+    // Log cells with nectar once at the start
     if (step == 0) {
         std::ofstream flower_log("flowers_log.csv");
         flower_log << "id,x,y,nectar" << std::endl;
-        auto flowers = FLAMEGPU->agent("flower");
-        auto& flower_pop = flowers.getPopulationData();
-        for (const auto& flower : flower_pop) {
-            flower_log << flower.getID() << ","
-                       << flower.getVariable<float>("x") << ","
-                       << flower.getVariable<float>("y") << ","
-                       << flower.getVariable<float>("nectar") << "\n";
+        auto cells = FLAMEGPU->agent("cell");
+        auto& cell_pop = cells.getPopulationData();
+        for (const auto& cell : cell_pop) {
+            float nectar = cell.getVariable<float>("nectar");
+            if (nectar > 0.0f) {
+                flower_log << cell.getID() << ","
+                           << cell.getVariable<int>("x") << ","
+                           << cell.getVariable<int>("y") << ","
+                           << nectar << "\n";
+            }
         }
         flower_log.close();
     }
@@ -66,39 +69,43 @@ void define_model(ModelDescription &model) {
     env.newProperty<float>("WH", 0.6f);
     env.newProperty<float>("WW", 0.4f);
 
-    // Flower Agent
-    AgentDescription flower = model.newAgent("flower");
-    flower.newVariable<id_t>("id", ID_NOT_SET);
-    flower.newVariable<float>("x");
-    flower.newVariable<float>("y");
-    flower.newVariable<float>("nectar");
+    // Cell Agent
+    AgentDescription cell = model.newAgent("cell");
+    cell.newVariable<int>("x");
+    cell.newVariable<int>("y");
+    cell.newVariable<int>("is_occupied", 0);
+    cell.newVariable<float>("nectar", 0.0f);
 
     // Bee Agent
     AgentDescription bee = model.newAgent("bee");
-    bee.newVariable<id_t>("id", ID_NOT_SET);
-    bee.newVariable<float>("x");
-    bee.newVariable<float>("y");
+    bee.newVariable<int>("x");
+    bee.newVariable<int>("y");
+    bee.newVariable<int>("last_x", -1);
+    bee.newVariable<int>("last_y", -1);
     bee.newVariable<float>("hunger_level");
     bee.newVariable<int>("wait", 0);
     bee.newVariable<float>("priority", 0.0f);
-    bee.newVariable<float>("target_x");
-    bee.newVariable<float>("target_y");
-    bee.newVariable<id_t>("target_flower_id", ID_NOT_SET);
-    bee.newVariable<int>("at_flower", 0);
+    bee.newVariable<id_t>("target_cell_id", ID_NOT_SET);
+    bee.newVariable<int>("target_x", 0);
+    bee.newVariable<int>("target_y", 0);
     bee.newVariable<id_t>("last_flower_id", ID_NOT_SET);
-    bee.newVariable<int>("is_moving", 0);
-    
+    bee.newVariable<int>("is_at_flower", 0);
+    bee.newVariable<int>("target_has_nectar", 0);
+    bee.newVariable<int>("moved_this_step", 0);
 
     // Add movement submodel
     SubModelDescription movement_sub = add_movement_submodel(model);
-    movement_sub.setMaxSteps(1); 
+    // Note: submodel's max steps is internal to it now, we just call it once per parent step.
 
     // Agent functions in parent model
+    AgentFunctionDescription init_move = bee.newFunction("bee_init_movement", bee_init_movement);
     AgentFunctionDescription calc_priority = bee.newFunction("calculate_priority", calculate_priority);
-    AgentFunctionDescription receive_grant = bee.newFunction("bee_receive_grant", bee_receive_grant);
     AgentFunctionDescription update_h_w = bee.newFunction("update_hunger_wait", update_hunger_wait);
 
     // Layers
+    LayerDescription l0 = model.newLayer();
+    l0.addAgentFunction(init_move);
+
     LayerDescription l1 = model.newLayer();
     l1.addAgentFunction(calc_priority);
 
@@ -106,10 +113,7 @@ void define_model(ModelDescription &model) {
     l2.addSubModel(movement_sub); 
 
     LayerDescription l3 = model.newLayer();
-    l3.addAgentFunction(receive_grant);
-
-    LayerDescription l4 = model.newLayer();
-    l4.addAgentFunction(update_h_w);
+    l3.addAgentFunction(update_h_w);
 
     // Initialisation functions
     model.addInitFunction(createAgent);
@@ -129,6 +133,7 @@ int main(int argc, const char ** argv) {
 
     // Simulation configuration
     CUDASimulation simulation(model);
+    simulation.SimulationConfig().random_seed = std::random_device{}();
     simulation.SimulationConfig().steps = SIMULATION_STEPS;
     
     simulation.simulate();
