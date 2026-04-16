@@ -23,14 +23,31 @@ FLAMEGPU_STEP_FUNCTION(stepLogger) {
     auto& bee_pop = bees.getPopulationData();
     unsigned int step = FLAMEGPU->getStepCounter();
     
+    // Validation: Check for collisions
+    std::vector<int> occupancy(ENV_DIM * ENV_DIM, 0);
+    int collisions = 0;
+
     for (const auto& bee : bee_pop) {
+        int x = bee.getVariable<int>("x");
+        int y = bee.getVariable<int>("y");
+
+        int idx = x * ENV_DIM + y;
+        occupancy[idx]++;
+        if (occupancy[idx] > 1) {
+            collisions++;
+        }
+
         bees_log << step << ","
                  << bee.getID() << ","
-                 << bee.getVariable<int>("x") << ","
-                 << bee.getVariable<int>("y") << ","
+                 << x << ","
+                 << y << ","
                  << bee.getVariable<float>("hunger_level") << ","
                  << bee.getVariable<int>("wait") << ","
                  << bee.getVariable<int>("is_at_flower") << "\n";
+    }
+
+    if (collisions > 0) {
+        std::cerr << "!!! STEP " << step << ": DETECTED " << collisions << " COLLISIONS !!!" << std::endl;
     }
     
     // Log cells with nectar once at the start
@@ -85,17 +102,16 @@ void define_model(ModelDescription &model) {
     bee.newVariable<float>("hunger_level");
     bee.newVariable<int>("wait", 0);
     bee.newVariable<float>("priority", 0.0f);
-    bee.newVariable<id_t>("target_cell_id", ID_NOT_SET);
-    bee.newVariable<int>("target_x", 0);
-    bee.newVariable<int>("target_y", 0);
-    bee.newVariable<id_t>("last_flower_id", ID_NOT_SET);
+    bee.newVariable<int>("target_x", -1);
+    bee.newVariable<int>("target_y", -1);
+    bee.newVariable<int>("last_flower_x", -1);
+    bee.newVariable<int>("last_flower_y", -1);
     bee.newVariable<int>("is_at_flower", 0);
     bee.newVariable<int>("target_has_nectar", 0);
     bee.newVariable<int>("moved_this_step", 0);
 
     // Add movement submodel
     SubModelDescription movement_sub = add_movement_submodel(model);
-    // Note: submodel's max steps is internal to it now, we just call it once per parent step.
 
     // Agent functions in parent model
     AgentFunctionDescription init_move = bee.newFunction("bee_init_movement", bee_init_movement);

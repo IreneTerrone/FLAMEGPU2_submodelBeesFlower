@@ -56,7 +56,6 @@ def visualize():
 
     # 2. Movement snapshots
     steps_to_plot = [0, 25, 50, 75, 99]
-    # Filter steps that actually exist
     steps_to_plot = [s for s in steps_to_plot if s in unique_steps]
     
     fig, axes = plt.subplots(1, len(steps_to_plot), figsize=(20, 4))
@@ -68,10 +67,10 @@ def visualize():
         mask = step == s
         
         # Plot flowers
-        ax.scatter(flower_x, flower_y, c='green', marker='*', s=50, alpha=0.5, label='Flowers')
+        ax.scatter(flower_x, flower_y, c='green', marker='*', s=30, alpha=0.3, label='Flowers')
         
         # Plot bees
-        ax.scatter(bee_x[mask], bee_y[mask], c='orange', marker='o', s=20, label='Bees')
+        ax.scatter(bee_x[mask], bee_y[mask], c='orange', marker='o', s=5, label='Bees')
         
         ax.set_title(f'Step {s}')
         ax.set_xlim(0, 100)
@@ -79,32 +78,63 @@ def visualize():
         if i == 0:
             ax.legend(loc='upper right')
 
-    plt.suptitle('Bee and Flower Positions over Time')
+    plt.suptitle('Bee and Flower Positions over Time (Full Grid)')
     plt.tight_layout()
     plt.savefig('movement_snapshots.png')
     print("Saved movement_snapshots.png")
 
-    # 3. Individual bee trajectories (sample 5 bees)
+    # 2.5 Zoomed Snapshots (to see collision avoidance)
+    fig, axes = plt.subplots(1, len(steps_to_plot), figsize=(20, 4))
+    if len(steps_to_plot) == 1:
+        axes = [axes]
+    
+    zoom_range = (40, 60) # Central 20x20 area
+    
+    for i, s in enumerate(steps_to_plot):
+        ax = axes[i]
+        mask = (step == s) & (bee_x >= zoom_range[0]) & (bee_x <= zoom_range[1]) & (bee_y >= zoom_range[0]) & (bee_y <= zoom_range[1])
+        flower_mask = (flower_x >= zoom_range[0]) & (flower_x <= zoom_range[1]) & (flower_y >= zoom_range[0]) & (flower_y <= zoom_range[1])
+        
+        # Grid lines to see individual cells
+        ax.set_xticks(np.arange(zoom_range[0], zoom_range[1] + 1, 1), minor=True)
+        ax.set_yticks(np.arange(zoom_range[0], zoom_range[1] + 1, 1), minor=True)
+        ax.grid(which='minor', alpha=0.3)
+        
+        # Plot flowers
+        ax.scatter(flower_x[flower_mask], flower_y[flower_mask], c='green', marker='*', s=150, alpha=0.4)
+        
+        # Plot bees
+        ax.scatter(bee_x[mask], bee_y[mask], c='orange', marker='o', s=50)
+        
+        ax.set_title(f'Step {s} (Zoom)')
+        ax.set_xlim(zoom_range[0], zoom_range[1])
+        ax.set_ylim(zoom_range[0], zoom_range[1])
+
+    plt.suptitle('Zoomed Area (40-60) - One Bee Per Cell Verification')
+    plt.tight_layout()
+    plt.savefig('movement_snapshots_zoomed.png')
+    print("Saved movement_snapshots_zoomed.png")
+
+    # 3. Individual bee trajectories (sample 50 bees)
     plt.figure(figsize=(10, 10))
     unique_ids = np.unique(bee_id)
-    sample_ids = unique_ids[:5]
+    sample_ids = unique_ids[:50] # Increased from 5 to 50
     plt.scatter(flower_x, flower_y, c='green', marker='*', s=100, alpha=0.3)
     
     for bid in sample_ids:
-        mask = bee_id == bid
-        # sort by step just in case
+        mask = (bee_id == bid)
+        # sort by step
         idx = np.argsort(step[mask])
-        plt.plot(bee_x[mask][idx], bee_y[mask][idx], marker='.', alpha=0.6, label=f'Bee {int(bid)}')
+        plt.plot(bee_x[mask][idx], bee_y[mask][idx], marker='.', alpha=0.4, linewidth=0.5)
         # Mark start and end
-        plt.scatter(bee_x[mask][idx][0], bee_y[mask][idx][0], marker='o', c='blue', s=30)
-        plt.scatter(bee_x[mask][idx][-1], bee_y[mask][idx][-1], marker='x', c='red', s=30)
+        plt.scatter(bee_x[mask][idx][0], bee_y[mask][idx][0], marker='o', c='blue', s=10)
+        plt.scatter(bee_x[mask][idx][-1], bee_y[mask][idx][-1], marker='x', c='red', s=10)
 
-    plt.title('Sample Bee Trajectories')
+    plt.title('Sample Bee Trajectories (50 Bees)')
     plt.xlabel('X')
     plt.ylabel('Y')
     plt.xlim(0, 100)
     plt.ylim(0, 100)
-    plt.legend()
     plt.savefig('bee_trajectories.png')
     print("Saved bee_trajectories.png")
 

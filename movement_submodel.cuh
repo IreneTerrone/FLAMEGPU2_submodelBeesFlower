@@ -8,13 +8,12 @@ using namespace flamegpu;
 #define GRID_DIM 100
 
 /**
- * 1. Cells output their status (ID, nectar, occupancy)
+ * 1. Cells output their status (nectar, occupancy)
  */
 FLAMEGPU_AGENT_FUNCTION(cell_output_status, MessageNone, MessageArray2D) {
     int x = FLAMEGPU->getVariable<int>("x");
     int y = FLAMEGPU->getVariable<int>("y");
     FLAMEGPU->message_out.setIndex(x, y);
-    FLAMEGPU->message_out.setVariable<id_t>("cell_id", FLAMEGPU->getID());
     FLAMEGPU->message_out.setVariable<int>("is_occupied", FLAMEGPU->getVariable<int>("is_occupied"));
     FLAMEGPU->message_out.setVariable<float>("nectar", FLAMEGPU->getVariable<float>("nectar"));
     return ALIVE;
@@ -27,19 +26,20 @@ FLAMEGPU_AGENT_FUNCTION(bee_request_move, MessageArray2D, MessageArray2D) {
     // Only request if not already moved and not currently at a flower
     if (FLAMEGPU->getVariable<int>("moved_this_step") == 1 || 
         FLAMEGPU->getVariable<int>("is_at_flower") == 1) {
-        FLAMEGPU->setVariable<id_t>("target_cell_id", ID_NOT_SET);
+        FLAMEGPU->setVariable<int>("target_x", -1);
+        FLAMEGPU->setVariable<int>("target_y", -1);
     } else {
         int x = FLAMEGPU->getVariable<int>("x");
         int y = FLAMEGPU->getVariable<int>("y");
         int lx = FLAMEGPU->getVariable<int>("last_x");
         int ly = FLAMEGPU->getVariable<int>("last_y");
-        id_t last_flower_id = FLAMEGPU->getVariable<id_t>("last_flower_id");
+        int lfx = FLAMEGPU->getVariable<int>("last_flower_x");
+        int lfy = FLAMEGPU->getVariable<int>("last_flower_y");
         
         float max_nectar = -1.0f;
         float max_tie_breaker = -1.0f;
-        id_t target_id = ID_NOT_SET;
-        int target_x = x;
-        int target_y = y;
+        int target_x = -1;
+        int target_y = -1;
         int target_has_nectar = 0;
 
         for (auto &msg : FLAMEGPU->message_in(x, y, 1)) {
@@ -49,14 +49,13 @@ FLAMEGPU_AGENT_FUNCTION(bee_request_move, MessageArray2D, MessageArray2D) {
             // Only consider unoccupied cells (that aren't where we just came from)
             if (msg.getVariable<int>("is_occupied") == 0 && !(mx == lx && my == ly)) {
                 float n = msg.getVariable<float>("nectar");
-                id_t cid = msg.getVariable<id_t>("cell_id");
                 float tie_breaker = FLAMEGPU->random.uniform<float>();
                 
                 if (n > max_nectar || (n == max_nectar && tie_breaker > max_tie_breaker)) {
-                    if (cid != last_flower_id) {
+                    // Check coordinate-based identity of the last flower
+                    if (!(mx == lfx && my == lfy)) {
                         max_nectar = n;
                         max_tie_breaker = tie_breaker;
-                        target_id = cid;
                         target_x = mx;
                         target_y = my;
                         target_has_nectar = (n > 0.0f) ? 1 : 0;
@@ -65,7 +64,6 @@ FLAMEGPU_AGENT_FUNCTION(bee_request_move, MessageArray2D, MessageArray2D) {
             }
         }
 
-        FLAMEGPU->setVariable<id_t>("target_cell_id", target_id);
         FLAMEGPU->setVariable<int>("target_x", target_x);
         FLAMEGPU->setVariable<int>("target_y", target_y);
         FLAMEGPU->setVariable<int>("target_has_nectar", target_has_nectar);
@@ -74,7 +72,8 @@ FLAMEGPU_AGENT_FUNCTION(bee_request_move, MessageArray2D, MessageArray2D) {
     // Always output a message to keep the MessageArray2D dense
     FLAMEGPU->message_out.setIndex(FLAMEGPU->getVariable<int>("x"), FLAMEGPU->getVariable<int>("y"));
     FLAMEGPU->message_out.setVariable<id_t>("bee_id", FLAMEGPU->getID());
-    FLAMEGPU->message_out.setVariable<id_t>("target_cell_id", FLAMEGPU->getVariable<id_t>("target_cell_id"));
+    FLAMEGPU->message_out.setVariable<int>("target_x", FLAMEGPU->getVariable<int>("target_x"));
+    FLAMEGPU->message_out.setVariable<int>("target_y", FLAMEGPU->getVariable<int>("target_y"));
     FLAMEGPU->message_out.setVariable<float>("priority", FLAMEGPU->getVariable<float>("priority"));
 
     return ALIVE;
@@ -86,7 +85,6 @@ FLAMEGPU_AGENT_FUNCTION(bee_request_move, MessageArray2D, MessageArray2D) {
 FLAMEGPU_AGENT_FUNCTION(cell_resolve_conflict, MessageArray2D, MessageArray2D) {
     int x = FLAMEGPU->getVariable<int>("x");
     int y = FLAMEGPU->getVariable<int>("y");
-    id_t my_id = FLAMEGPU->getID();
 
     id_t winner_id = ID_NOT_SET;
     float max_p = -1.0f;
@@ -95,7 +93,8 @@ FLAMEGPU_AGENT_FUNCTION(cell_resolve_conflict, MessageArray2D, MessageArray2D) {
     // Only resolve if currently unoccupied
     if (FLAMEGPU->getVariable<int>("is_occupied") == 0) {
         for (auto &msg : FLAMEGPU->message_in(x, y, 1)) {
-            if (msg.getVariable<id_t>("target_cell_id") == my_id) {
+            // Match target coordinates instead of ID
+            if (msg.getVariable<int>("target_x") == x && msg.getVariable<int>("target_y") == y) {
                 float p = msg.getVariable<float>("priority");                         
                 float tie_breaker = FLAMEGPU->random.uniform<float>();
                 
@@ -119,20 +118,25 @@ FLAMEGPU_AGENT_FUNCTION(cell_resolve_conflict, MessageArray2D, MessageArray2D) {
  */
 FLAMEGPU_AGENT_FUNCTION(bee_execute_move, MessageArray2D, MessageArray2D) {
     id_t my_id = FLAMEGPU->getID();
-    id_t target_id = FLAMEGPU->getVariable<id_t>("target_cell_id");
+    int tx = FLAMEGPU->getVariable<int>("target_x");
+    int ty = FLAMEGPU->getVariable<int>("target_y");
 
-    if (target_id != ID_NOT_SET) {
-        int tx = FLAMEGPU->getVariable<int>("target_x");
-        int ty = FLAMEGPU->getVariable<int>("target_y");
-        
+    if (tx != -1 && ty != -1) {
         auto msg = FLAMEGPU->message_in.at(tx, ty);
         if (msg.getVariable<id_t>("winner_id") == my_id) {
             FLAMEGPU->setVariable<int>("last_x", FLAMEGPU->getVariable<int>("x"));
             FLAMEGPU->setVariable<int>("last_y", FLAMEGPU->getVariable<int>("y"));
             FLAMEGPU->setVariable<int>("x", tx);
             FLAMEGPU->setVariable<int>("y", ty);
-            FLAMEGPU->setVariable<id_t>("last_flower_id", target_id);
-            FLAMEGPU->setVariable<int>("is_at_flower", FLAMEGPU->getVariable<int>("target_has_nectar"));
+            
+            // If the cell we moved to has nectar, it becomes our last flower
+            if (FLAMEGPU->getVariable<int>("target_has_nectar") == 1) {
+                FLAMEGPU->setVariable<int>("last_flower_x", tx);
+                FLAMEGPU->setVariable<int>("last_flower_y", ty);
+                FLAMEGPU->setVariable<int>("is_at_flower", 1);
+            } else {
+                FLAMEGPU->setVariable<int>("is_at_flower", 0);
+            }
             FLAMEGPU->setVariable<int>("moved_this_step", 1);
         }
     } 
@@ -173,14 +177,14 @@ FLAMEGPU_HOST_CONDITION(move_exit_condition) {
 
 void define_message_submodule(ModelDescription &smm) {
     auto m1 = smm.newMessage<MessageArray2D>("cell_status");
-    m1.newVariable<id_t>("cell_id");
     m1.newVariable<int>("is_occupied");
     m1.newVariable<float>("nectar");
     m1.setDimensions(GRID_DIM, GRID_DIM);
 
     auto m2 = smm.newMessage<MessageArray2D>("move_request");
     m2.newVariable<id_t>("bee_id");
-    m2.newVariable<id_t>("target_cell_id");
+    m2.newVariable<int>("target_x");
+    m2.newVariable<int>("target_y");
     m2.newVariable<float>("priority");
     m2.setDimensions(GRID_DIM, GRID_DIM);
 
@@ -206,10 +210,10 @@ void define_agent_submodule(ModelDescription &smm) {
     bee.newVariable<int>("last_x", -1);
     bee.newVariable<int>("last_y", -1);
     bee.newVariable<float>("priority", 0.0f);
-    bee.newVariable<id_t>("target_cell_id", ID_NOT_SET);
-    bee.newVariable<int>("target_x", 0);
-    bee.newVariable<int>("target_y", 0);
-    bee.newVariable<id_t>("last_flower_id", ID_NOT_SET);
+    bee.newVariable<int>("target_x", -1);
+    bee.newVariable<int>("target_y", -1);
+    bee.newVariable<int>("last_flower_x", -1);
+    bee.newVariable<int>("last_flower_y", -1);
     bee.newVariable<int>("is_at_flower", 0);
     bee.newVariable<int>("target_has_nectar", 0);
     bee.newVariable<int>("moved_this_step", 0);
@@ -224,8 +228,6 @@ void define_agent_submodule(ModelDescription &smm) {
     auto f3 = cell.newFunction("cell_update_occupancy", cell_update_occupancy);
     f3.setMessageInput("bee_location");
 
-    bee.newFunction("bee_init_movement", bee_init_movement);
-    
     auto f4 = bee.newFunction("bee_request_move", bee_request_move);
     f4.setMessageInput("cell_status");
     f4.setMessageOutput("move_request");
