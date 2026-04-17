@@ -6,12 +6,6 @@
 using namespace flamegpu;
 
 
-FLAMEGPU_AGENT_FUNCTION(bee_init_movement, MessageNone, MessageNone) {
-    FLAMEGPU->setVariable<int>("moved_this_step", 0);
-    return ALIVE;
-}
-
-
 FLAMEGPU_AGENT_FUNCTION(calculate_priority, MessageNone, MessageNone) {
     int is_at_flower = FLAMEGPU->getVariable<int>("is_at_flower");
     

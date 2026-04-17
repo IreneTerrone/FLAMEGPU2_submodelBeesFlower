@@ -175,6 +175,17 @@ FLAMEGPU_HOST_CONDITION(move_exit_condition) {
     return EXIT;
 }
 
+/**
+ * Init function for the submodel to reset movement status
+ */
+FLAMEGPU_INIT_FUNCTION(reset_moved_this_step) {
+    auto bees = FLAMEGPU->agent("bee");
+    auto &bee_pop = bees.getPopulationData();
+    for (auto bee : bee_pop) {
+        bee.setVariable<int>("moved_this_step", 0);
+    }
+}
+
 void define_message_submodule(ModelDescription &smm) {
     auto m1 = smm.newMessage<MessageArray2D>("cell_status");
     m1.newVariable<int>("is_occupied");
@@ -251,6 +262,7 @@ SubModelDescription add_movement_submodel(ModelDescription &model) {
     define_agent_submodule(sub_model_move);
     define_layer_submodule(sub_model_move);
     sub_model_move.addExitCondition(move_exit_condition);
+    sub_model_move.addInitFunction(reset_moved_this_step);
 
     SubModelDescription smm = model.newSubModel("move", sub_model_move);
     smm.setMaxSteps(5); 
