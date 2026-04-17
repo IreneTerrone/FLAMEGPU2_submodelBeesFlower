@@ -114,22 +114,18 @@ void define_model(ModelDescription &model) {
     SubModelDescription movement_sub = add_movement_submodel(model);
 
     // Agent functions in parent model
-    AgentFunctionDescription init_move = bee.newFunction("bee_init_movement", bee_init_movement);
     AgentFunctionDescription calc_priority = bee.newFunction("calculate_priority", calculate_priority);
     AgentFunctionDescription update_h_w = bee.newFunction("update_hunger_wait", update_hunger_wait);
 
     // Layers
     LayerDescription l0 = model.newLayer();
-    l0.addAgentFunction(init_move);
+    l0.addAgentFunction(calc_priority);
 
     LayerDescription l1 = model.newLayer();
-    l1.addAgentFunction(calc_priority);
+    l1.addSubModel(movement_sub); 
 
     LayerDescription l2 = model.newLayer();
-    l2.addSubModel(movement_sub); 
-
-    LayerDescription l3 = model.newLayer();
-    l3.addAgentFunction(update_h_w);
+    l2.addAgentFunction(update_h_w);
 
     // Initialisation functions
     model.addInitFunction(createAgent);
