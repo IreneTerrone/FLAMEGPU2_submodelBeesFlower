@@ -162,7 +162,7 @@ void map_variables(SubModelDescription &smm,
     
 }
 
-SubModelDescription setup(ModelDescription &parent, 
+SubModelDescription define_submodel(ModelDescription &parent, 
                         std::string parentMovingAgentName, 
                         std::string parentCellName,
                         int dimX, int dimY,
@@ -188,7 +188,7 @@ SubModelDescription setup(ModelDescription &parent,
             const vector<string> REQUIRED_VARS_CELL_AGENT = {"x", "y", "is_occupied", "nectar".........};
             
             // Map variables with flexibility for user-defined names
-            map_variables(Submodel REQUIRED_VARS_MOVING_AGENT, REQUIRED_VARS_CELL_AGENT, agentMap, cellMap);
+            map_variables(smm, REQUIRED_VARS_MOVING_AGENT, REQUIRED_VARS_CELL_AGENT, agentMap, cellMap);
             
    
             return smm;
