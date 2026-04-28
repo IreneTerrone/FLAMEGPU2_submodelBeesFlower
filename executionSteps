@@ -1,3 +1,13 @@
-cmake -S . -B build -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc  -DCMAKE_BUILD_TYPE=Release 
-cmake --build ./build/ --target all -j8 
-./build/bin/Release/FLAMEGPUABM
+cmake -S . -B build -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc  -DCMAKE_BUILD_TYPE=Release
+cmake --build ./build/ --target all -j8
+
+./build/bin/Release/beesandbees or dove cavolo e' e come si chiama il progetto
+
+per lint:
+spostati nella cartella build e poi
+ cmake --build . --target all_lint
+
+ oppure...
+
+ cmake --build ./build/ --target all_lint
+ si beh.
